@@ -14,6 +14,24 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->setupUi(this);
 
+     /*
+     Обновление
+    */
+    // Создаём поток один раз
+    thread = new QThread(this);
+    worker = new Worker;
+    worker->moveToThread(thread);
+
+    // Подключаем слоты
+    //connect(thread, &QThread::started, worker, &Worker::process);
+    connect(worker, &Worker::progress, this, &MainWindow::updateProgress);
+    connect(worker, &Worker::finished, this, &MainWindow::onFinished);
+
+    // Закрытие потока при завершении работы
+    connect(worker, &Worker::finished, thread, &QThread::quit);
+    thread->start();
+
+
     QFont font = ui->ButtonExit->font(); // изменение шрифта
 
     ui->ButtonExit->setGeometry(550, 15, 25, 25);
@@ -74,11 +92,6 @@ MainWindow::MainWindow(QWidget *parent)
                                                                         });
 }
 
-MainWindow::~MainWindow()
-{
-    delete ui;
-}
-
 void MainWindow::chooseFile()
 {
 
@@ -128,23 +141,19 @@ void MainWindow::startProcessing()
         return;
     }
 
-    QThread *thread = new QThread;
-    Worker *worker = new Worker;
+    /*
+     Обновление
+    */
+    // Передаём параметры воркеру
     worker->setParams(inputFile, outputFile, key);
-    worker->moveToThread(thread);
+
 
     ui->progressBar->setGeometry(55, 220, 500, 25); // устанавливаем размер для шкалы загрузки
 
-    connect(thread, &QThread::started, worker, &Worker::process);
-    connect(worker, &Worker::progress, this, &MainWindow::updateProgress);
-    connect(worker, &Worker::finished, this, &MainWindow::onFinished);
-    connect(worker, &Worker::finished, worker, &Worker::deleteLater);
-    connect(worker, &Worker::finished, thread, &QThread::quit);
-    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
 
-    thread->start();
+    // Запускаем задачу в потоке
+    QMetaObject::invokeMethod(worker, "process", Qt::QueuedConnection);
 }
-
 
 
 void MainWindow::updateProgress(int value)
@@ -165,8 +174,6 @@ void MainWindow::onFinished(bool success, const QString &message)
     }
 
 }
-
-
 
 void MainWindow::mousePressEvent(QMouseEvent *event)
 {
@@ -193,6 +200,18 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event)
     }
 }
 
+
+/*
+ Обновление
+*/
+MainWindow::~MainWindow()
+{
+    if (thread && thread->isRunning()) {
+        thread->quit();
+        thread->wait();
+    }
+    delete ui;
+}
 
 
 
