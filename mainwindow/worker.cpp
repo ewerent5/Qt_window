@@ -1,5 +1,6 @@
 #include "worker.h"
 #include <QFile>
+#include <QThread>
 #include <QDataStream>
 
 Worker::Worker(QObject *parent) : QObject(parent) {}
@@ -51,4 +52,5 @@ void Worker::process()
     }
 
     emit finished(true, "Обработка завершена");
+
 }
