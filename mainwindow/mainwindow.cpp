@@ -128,7 +128,7 @@ void MainWindow::startProcessing()
     /*
      Обновление
     */
-    // каждый раз создаю новый поток для новой работы
+    // каждый раз перезаписывается поток для новой работы
     thread = new QThread;
     worker = new Worker;
 
