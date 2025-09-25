@@ -14,24 +14,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->setupUi(this);
 
-     /*
-     Обновление
-    */
-    // Создаём поток один раз
-    thread = new QThread(this);
-    worker = new Worker;
-    worker->moveToThread(thread);
-
-    // Подключаем слоты
-    //connect(thread, &QThread::started, worker, &Worker::process);
-    connect(worker, &Worker::progress, this, &MainWindow::updateProgress);
-    connect(worker, &Worker::finished, this, &MainWindow::onFinished);
-
-    // Закрытие потока при завершении работы
-    connect(worker, &Worker::finished, thread, &QThread::quit);
-    thread->start();
-
-
     QFont font = ui->ButtonExit->font(); // изменение шрифта
 
     ui->ButtonExit->setGeometry(550, 15, 25, 25);
@@ -84,13 +66,15 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::startProcessing);
     connect(ui->ButtonExit, &QPushButton::clicked, this, &MainWindow::close);
     connect(ui->checkBox_SursFile, &QCheckBox::toggled, this, [=](bool checked){
-                                                                            if (checked) {
-                                                                                clear = true;
-                                                                            } else {
-                                                                                clear = false;
-                                                                            }
-                                                                        });
+        if (checked) {
+            clear = true;
+        } else {
+            clear = false;
+        }
+    });
 }
+
+
 
 void MainWindow::chooseFile()
 {
@@ -122,6 +106,7 @@ void MainWindow::onLineEditTextChanged(const QString &text) // Динамиче�
 
 void MainWindow::startProcessing()
 {
+
     if (inputFile.isEmpty()) {
         QMessageBox::warning(this, "Ошибка", "Сначала выберите файл");
 
@@ -140,19 +125,45 @@ void MainWindow::startProcessing()
         QMessageBox::warning(this, "Ошибка", "Введите корректный ключ (в hex)");
         return;
     }
-
     /*
      Обновление
     */
-    // Передаём параметры воркеру
-    worker->setParams(inputFile, outputFile, key);
+    // каждый раз создаю новый поток для новой работы
+    thread = new QThread;
+    worker = new Worker;
 
+    worker->setParams(inputFile, outputFile, key);
+    worker->moveToThread(thread);
 
     ui->progressBar->setGeometry(55, 220, 500, 25); // устанавливаем размер для шкалы загрузки
 
+    connect(thread, &QThread::started, worker, &Worker::process);
+    connect(worker, &Worker::progress, this, &MainWindow::updateProgress);
+    connect(worker, &Worker::finished, this, &MainWindow::onFinished);
+    connect(worker, &Worker::finished, worker, &Worker::deleteLater);
+    connect(worker, &Worker::finished, thread, &QThread::quit);
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
 
-    // Запускаем задачу в потоке
-    QMetaObject::invokeMethod(worker, "process", Qt::QueuedConnection);
+    thread->start();
+    /*
+     Обновление
+    */
+    // удаляю для новых запросов работы
+    exit_thread();
+}
+
+void MainWindow::exit_thread(){
+    if (worker) {
+        worker->deleteLater();
+        worker = nullptr;
+    }
+
+    if (thread) {
+        thread->quit();
+        thread->wait();
+        thread->deleteLater();
+        thread = nullptr;
+    }
 }
 
 
@@ -183,7 +194,6 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
         event->accept();
     }
 }
-
 void MainWindow::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_drag && (event->buttons() & Qt::LeftButton)) {
@@ -191,7 +201,6 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
         event->accept();
     }
 }
-
 void MainWindow::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
@@ -200,21 +209,8 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event)
     }
 }
 
-
-/*
- Обновление
-*/
 MainWindow::~MainWindow()
 {
-    if (thread && thread->isRunning()) {
-        thread->quit();
-        thread->wait();
-    }
+    exit_thread();
     delete ui;
 }
-
-
-
-
-
-
