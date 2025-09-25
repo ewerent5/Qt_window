@@ -40,5 +40,8 @@ private:
     bool clear = false; // для checkBox
     bool m_drag = false; // для интерактивности
     QPoint m_dragPosition;
+
+    QThread *thread = nullptr;
+    Worker *worker = nullptr;
 };
 #endif // MAINWINDOW_H
