@@ -31,7 +31,10 @@ private slots:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-
+    /*
+    Обновление
+    */
+    void exit_thread();
 private:
     Ui::MainWindow *ui;
     QString inputFile{};
@@ -40,8 +43,11 @@ private:
     bool clear = false; // для checkBox
     bool m_drag = false; // для интерактивности
     QPoint m_dragPosition;
-
+    /*
+    Обновление
+    */
     QThread *thread = nullptr;
     Worker *worker = nullptr;
+
 };
 #endif // MAINWINDOW_H
